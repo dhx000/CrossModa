@@ -6,18 +6,36 @@ import numpy as np
 import random
 import skimage.transform as skTrans
 class CrossDataSet(Dataset):
-    def __init__(self, root, txt_name, train_flag=False, transformer=None):
+    def __init__(self, root, txt_name, train_flag=False, transformer=None, slice=16, downsample=4):
+        '''
+        :param root: data path
+        :param txt_name: data name
+        :param train_flag: whether to use on train laoder
+        :param transformer:
+        :param slice: 3D slicen num
+        :param downsample: use downsample on W * H
+        '''
+        #origin image :[512,512,120]
         self.images_list = self.get_file(txt_name)
         self.train_flag=train_flag
         self.root = root
         self.transform = transformer
-        self.slice = 16
+        self.slice = slice
+        self.downsample=downsample
     def get_file(self,txt_name):
         file=open(txt_name,'r')
         list=file.readlines()
         return list
     def __getitem__(self, index):
+        '''
 
+        :param index:
+        :return: image:[1,512/ds,512/ds,slice]
+                label:[1,512/ds,512/ds,slice]
+                name of image
+                name of label
+        only return image if train_flag=False
+        '''
         if (self.train_flag==True): index=index*2
         file_name=self.root+'/'+self.images_list[index].strip()
         img = nib.load(file_name).get_fdata()
@@ -30,8 +48,8 @@ class CrossDataSet(Dataset):
             label = nib.load(label_name).get_fdata()
             label = label[:,:,r:r+self.slice]
         if (self.transform!=None): img = self.transform(img)
-        img = skTrans.resize(img, (img.shape[0]//4, img.shape[1]//4, img.shape[2]), order=1, preserve_range=True).astype(np.float32)
-        label = skTrans.resize(label , (label.shape[0] // 4, label.shape[1] // 4, label.shape[2]), order=1, preserve_range=True)
+        img = skTrans.resize(img, (img.shape[0]//self.downsample, img.shape[1]//self.downsample, img.shape[2]), order=1, preserve_range=True).astype(np.float32)
+        label = skTrans.resize(label , (label.shape[0] // self.downsample, label.shape[1] // self.downsample, label.shape[2]), order=1, preserve_range=True)
         label[label>0]=1
         label=label.astype(np.int64)
         label = np.expand_dims(label, axis=0)
